@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
 
-@Controller('api')
+@Controller()
 export class AppController {
   @Get()
   getHello(): string {
