@@ -1,35 +1,50 @@
-import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import OpenAI from 'openai';
 
 @Controller('api')
 export class AppController {
-  @Get()
-  getHello(): string {
-    return '<h1>Hello World!</h1>' + 'Atak Isteid Na';
+  private client: OpenAI;
+
+  constructor(private config: ConfigService) {
+    this.client = new OpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: this.config.get<string>('OPENAI_API_KEY'),
+      timeout: 15 * 60 * 1000, // 15 min
+    });
   }
 
-  @Post('messages') async messages(
-    @Body('username') username: string,
-    @Body('message') message: string,
-  ): Promise<{
-    status: number
-    message: string
-    data: {
-      username: string
-      message: string
-    }
+  @Post('talk') async talk(@Body('text') text: string): Promise<{
+    text: string;
+    date: string;
+    time: string;
+    error: boolean;
   }> {
-
-    if (!username || !message) {
-      throw new BadRequestException('Not all data passed', {
-        cause: new Error(),
-        description: 'Username or message is missing',
+    try {
+      const currentDate = new Date();
+      const completion = await this.client.chat.completions.create({
+        model: 'qwen/qwen3-30b-a3b:free',
+        messages: [
+          {
+            role: 'user',
+            content: text,
+          },
+        ],
       });
-    }
 
-    return {
-      status: 200,
-      message: 'success',
-      data: { username, message }
-    };
+      const isError = !completion.choices[0].message.content;
+
+      return {
+        text:
+          completion.choices[0].message.content ||
+          '** Invalid response occurred, please try again or later. **',
+        date: currentDate.toString().slice(4, 10),
+        time: currentDate.toString().slice(16, 21),
+        error: isError,
+      };
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
   }
 }

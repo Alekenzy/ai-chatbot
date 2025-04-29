@@ -4,11 +4,15 @@
       <div class="text-center my-4">
         <v-chip class="text-grey bg-transparent">{{ group.date }}</v-chip>
       </div>
-      <v-row v-for="message in group.messages" :key="message.id" :justify="message.isMine ? 'end' : 'start'">
+      <v-row
+        v-for="(message, messageIndex) in group.messages"
+        :key="messageIndex"
+        :justify="message.isMine ? 'end' : 'start'"
+      >
         <v-col cols="10">
           <v-card :class="['chat-bubble', message.isMine ? 'mine' : 'theirs']">
             <v-card-text>
-              <div class="message-text">{{ message.text }}</div>
+              <div class="message-text" :class="{'text-red-lighten-2 font-weight-bold': message.error}" v-html="message.text" />
               <div class="time-text">{{ message.time }}</div>
             </v-card-text>
           </v-card>

@@ -32,6 +32,8 @@
 <script setup lang="ts">
   import ChatInterface from '@/components/chat-interface.vue';
   import type { Message } from '@/config/types/chat.ts';
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
 
   const chatHistory = ref<Message[]>([])
   const userText = ref<string>('')
@@ -43,7 +45,6 @@
 
     const currentDate = new Date();
     chatHistory.value.push({
-      id: chatHistory.value.length + 1,
       text: userText.value,
       date: currentDate.toString().slice(4, 10),
       time: currentDate.toString().slice(16, 21),
@@ -53,34 +54,36 @@
     userText.value = ''
   }
 
-  function createRandomString (length: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ';
-    let result = '';
-    const randomArray = new Uint8Array(length);
-    crypto.getRandomValues(randomArray);
-    randomArray.forEach(number => {
-      result += chars[number % chars.length];
-    });
-    return result;
-  }
-
   function getAiResponse (userTextValue: string) {
-    try {
-      aiLoading.value = true;
+    aiLoading.value = true;
+    fetch(
+      'http://localhost:8000/api/talk',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: userTextValue }),
+      }
+    ).then(async response => {
+      const res: Message = await response.json()
+      res.text = DOMPurify.sanitize(marked.parse(res.text) as string)
+      chatHistory.value.push({
+        ...res,
+        isMine: false,
+      })
+    }).catch(() => {
       const currentDate = new Date()
-      setTimeout(() => {
-        chatHistory.value.push({
-          id: chatHistory.value.length + 1,
-          text: `My answer for "${userTextValue}" is: ` + createRandomString(200),
-          date: currentDate.toString().slice(4, 10),
-          time: currentDate.toString().slice(16, 21),
-          isMine: false,
-        })
-        aiLoading.value = false
-      }, 2000)
-    } catch (e) {
-      console.log(e)
-    }
+      chatHistory.value.push({
+        text: 'Hi, this is an automatic answer. Something went wrong.' +
+          '<br>' +
+          'Please, check your connection with server or your request.',
+        date: currentDate.toString().slice(4, 10),
+        time: currentDate.toString().slice(16, 21),
+        isMine: false,
+        error: true,
+      })
+    }).finally(() => {
+      aiLoading.value = false
+    })
   }
 </script>
 
